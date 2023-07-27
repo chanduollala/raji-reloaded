@@ -1,109 +1,13 @@
 #!/bin/bash
 
-# ANSI escape sequences for text color
-GREEN=$(tput setaf 2)
-YELLOW=$(tput setaf 3)
-RESET=$(tput sgr0)
-
-print_options() {
-
-
-
-  local selected_option=$1
-  local no_of_options=$2
-  local options=("${@:3:$no_of_options}")
-  shift $no_of_options
-  local selected=("$@")
-
-  local i=1
-  for option in "${options[@]}"; do
-    echo -ne "${RESET}"
-    if [ "${selected[$i+1]}" == 1 ]; then
-      echo -ne "${GREEN}[✔] "
-    else
-      echo -ne "[ ] "
-    fi
-    if [ $i -eq $selected_option ]; then
-
-
-        echo "=> ${option}"
-    else
-
-        echo "   ${option}"
-    fi
-    ((i++))
-  done
-  echo -ne "${RESET}"
-
-}
-
-
-
-multi_select(){
-
-  local selections_arr=$1
-  local selections=()
-  shift
-  local options=("$@")
-  # Initialize the selected state of options
-  for ((i = 0; i < ${#options[@]}; i++)); do
-    selected[$i]=0
-  done
-  # Set initial selected option and current option
-  selected_option=1
-  current_option=1
-  no_of_options=${#options[@]}
-  while true; do
-    print_options $selected_option "$no_of_options" "${options[@]}" "${selected[@]}"
-    IFS= read -rsn1 input
-    if [ "$input" == $'\x1b' ]; then
-        read -rsn2 key
-        if [[ $key == "[A" ]] && [ $selected_option -gt 1 ]; then
-          ((selected_option--))
-          ((current_option--))
-        elif [[ $key == "[B" ]] && [ $selected_option -lt ${#options[@]} ]; then
-          ((selected_option++))
-          ((current_option++))
-        fi
-    elif [[ $input == " " ]]; then
-          # Space key to select/deselect option
-      		if [ "${selected[$selected_option-1]}" == 1 ]; then
-      		  selected[$selected_option-1]=0
-      		else
-      		  selected[$selected_option-1]=1
-
-      		fi
-
-    elif [[ $input == '' ]]; then
-      break
-    fi
-    echo -ne "\033[${#options[@]}A"
-  done
-
-  echo -ne "\033[$(( ${#options[@]} + 1 ))A"
-  echo -ne "\033[J"
-
-# Collect the selected frontend options
-	for ((i = 0; i < ${#options[@]}; i++)); do
-	  if [ "${selected[$i]}" == 1 ]; then
-		selections+=("${options[$i]}")
-	  fi
-	done
-
-  eval "${selections_arr}=(\"\${selections[@]}\")"
-
-
-
-}
-
 kill_server() {
   # Find the process ID (PID) of the server.rb process
-  server_pid=$(sudo lsof -t -i :2003)
+  server_pid=$(lsof -t -i :2003)
 
   # Check if the process is running
   if [ -n "$server_pid" ]; then
     # Kill the process
-    sudo kill -9 "$server_pid"
+    kill -9 "$server_pid"
     echo "Server process already running as (PID: $server_pid) has been terminated."
   fi
 }
@@ -117,7 +21,7 @@ if [ "$1" = "start" ]; then
       # Wait for the server process to start
       sleep 1
       # Check if the server process is running
-      if sudo lsof -t -i :2003 >/dev/null; then
+      if lsof -t -i :2003 >/dev/null; then
           echo "Server started successfully"
       else
           echo "Failed to start the server"
@@ -131,182 +35,11 @@ if [ "$1" = "start" ]; then
 elif [ "$1" = "stop" ]; then
     kill_server
 
-elif [ "$1" = "create" ] || [ "$1" = "c" ]; then
-
-
-  # Prompt for project title
-    echo "Enter project title:"
-    read -r project_title
-
-    # Create folder in Documents/RajiProjects directory
-    projects_dir="$HOME/Documents/RajiProjects"
-    mkdir -p "$projects_dir/$project_title"
-
-    # Create configuration file
-    config_file="$projects_dir/$project_title/config.json"
-    touch "$config_file"
-
-
-  # Check command arguments for tech stack options
-  case "$*" in
-    *"--frontend"*)
-      frontend_args=("${@:$(( $(echo "$@" | grep -o -- "--frontend" | wc -l) + 2 ))}")
-      selected_frontends=("${frontend_args[@]}")
-      IFS=","
-      echo "Selected Frontend Frameworks:${YELLOW} ${selected_frontends[@]}${RESET}"
-      unset IFS
-      ;;
-    *)
-      # Add the command to run your other script here
-      #SELECT FRONTEND TECH STACK
-      selected_frontends=()
-      frontend_options=("Angular" "React" "Vue" "Flutter" "Express JS" "RubyOnRails")
-      echo "Select frontend framework(s) for the project (use arrow keys to navigate, press space to select/deselect, and press enter to proceed):"
-      multi_select "selected_frontends" "${frontend_options[@]}"
-
-      IFS=","
-      echo "Selected Frontend Frameworks:${YELLOW} ${selected_frontends[@]}${RESET}"
-      unset IFS
-      ;;
-  esac
-
-
-  case "$*" in
-    *"--backend"*)
-      backend_args=("${@:$(( $(echo "$@" | grep -o -- "--backend" | wc -l) + 2 ))}")
-      selected_backends=("${backend_args[@]}")
-      IFS=","
-      echo "Selected Backend Frameworks:${YELLOW} ${selected_backends[@]}${RESET}"
-      unset IFS
-      ;;
-    *)
-      # Add the command to run your other script here
-      #SELECT BACKEND TECH STACK
-      selected_backends=()
-      backend_options=("Node JS" "Rails API" "Springboot")
-      echo "Select backend framework(s) for the project (use arrow keys to navigate, press space to select/deselect, and press enter to proceed):"
-      multi_select "selected_backends" "${backend_options[@]}"
-      IFS=","
-      echo "Selected Backend Frameworks:${YELLOW} ${selected_backends[@]}${RESET}"
-      unset IFS
-      ;;
-  esac
-
-
-  case "$*" in
-    *"--database"*)
-      database_args=("${@:$(( $(echo "$@" | grep -o -- "--database" | wc -l) + 2 ))}")
-      selected_databases=("${database_args[@]}")
-      IFS=","
-      echo "Selected Database Frameworks:${YELLOW} ${selected_databases[@]}${RESET}"
-      unset IFS
-      ;;
-    *)
-      # Add the command to run your other script here
-      #SELECT DATABASE TECH STACK
-      selected_databases=()
-      database_options=("MySQL" "Oracle" "MongoDB" "PostgreSQL")
-      echo "Select database framework(s) for the project (use arrow keys to navigate, press space to select/deselect, and press enter to proceed):"
-      multi_select "selected_databases" "${database_options[@]}"
-      IFS=","
-      echo "Selected Database Frameworks:${YELLOW} ${selected_databases[@]}${RESET}"
-      unset IFS
-      ;;
-  esac
-
-
-  case "$*" in
-    *"--additional"*)
-      additional_args=("${@:$(( $(echo "$@" | grep -o -- "--additional" | wc -l) + 2 ))}")
-      selected_additional_frameworks=("${additional_args[@]}")
-      IFS=","
-      echo "Selected Additional Frameworks:${YELLOW} ${selected_additional_frameworks[@]}${RESET}"
-      unset IFS
-      ;;
-    *)
-      # Add the command to run your other script here
-      #SELECT OTHER TECH STACK
-      selected_additional_frameworks=()
-      additional_frameworks_options=("Google Cloud CLI" "Azure CLI" "Firebase")
-      echo "Select frontend framework(s) for the project (use arrow keys to navigate, press space to select/deselect, and press enter to proceed):"
-      multi_select "selected_additional_frameworks" "${additional_frameworks_options[@]}"
-      IFS=","
-      echo "Selected Additional Frameworks:${YELLOW} ${selected_additional_frameworks[@]}${RESET}"
-      unset IFS
-      ;;
-  esac
-
-
-  #create JSON configuration file
-  {
-    echo "{"
-    echo '  "project_title": "'"$project_title"'"'
-    echo '  "frontend_frameworks": ["'"${selected_frontends[*]}"'"],'
-    echo '  "backend_frameworks": ["'"${selected_backends[*]}"'"],'
-    echo '  "database_frameworks": ["'"${selected_databases[*]}"'"],'
-    echo '  "additional_frameworks": ["'"${selected_additional_frameworks[*]}"'"]'
-    echo "}"
-  } > "$config_file"
-
 elif [ "$1" = "hello" ]; then
-  echo "hello from chandu"
+    echo "hello from chandu"
 
-elif [ "$1" = "install" ] || [ "$1" = "i" ]; then
-
-  echo "Installing"
-
-
-  # URL for the POST request
-  url="https://firestore.googleapis.com/v1/projects/raji-dev/databases/(default)/documents:runQuery"
-
-  # Iterate over each argument
-  for arg in "$@"; do
-      # Skip non-frontend arguments
-      if [[ $arg == "raji" || $arg == "install" || $arg == "perform" ]]; then
-          continue
-      fi
-
-      # Create the JSON payload with substituted keyword
-      payload='{
-        "structuredQuery": {
-          "from": [
-            {
-              "collectionId": "frameworks"
-            }
-          ],
-          "where": {
-            "fieldFilter": {
-              "field": {
-                "fieldPath": "aliases"
-              },
-              "op": "array-contains",
-              "value": {
-                "stringValue": "'"$arg"'"
-              }
-            }
-          }
-        }
-      }'
-
-      # Send the POST request and store the response in the selected_frontends array
-      response=$(curl -X POST -H "Content-Type: application/json" -d "$payload" "$url")
-      selected_frontends+=("$response")
-  done
-
-  # Print the installation script for each frontend
-  for ((i=0; i<${#selected_frontends[@]}; i++)); do
-      frontend=${selected_frontends[$i]}
-
- installation_script=${frontend#*\"installation_script\": \{\"stringValue\": \"}
-    installation_script=${installation_script%%\"*}
-          echo "Installation script for frontend $((i+1)):"
-      echo "$installation_script"
-      echo
-  done
 else
     echo "Invalid command. Usage: raji [start|stop|create]"
 fi
-
-
 
 exit 0
